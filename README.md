@@ -1,6 +1,6 @@
 # sqlmesh-openlineage
 
-OpenLineage integration for SQLMesh. Emits per-model lineage events during SQLMesh runs without modifying SQLMesh itself.
+OpenLineage integration for SQLMesh. Automatically emits lineage events to Marquez or any OpenLineage-compatible backend.
 
 ## Features
 
@@ -23,6 +23,8 @@ uv add sqlmesh-openlineage
 ```
 
 ## Quick Start (CLI Users)
+
+**Note:** This package requires Python-based SQLMesh configuration (`config.py`), not YAML configuration.
 
 Add this to your `config.py`:
 
