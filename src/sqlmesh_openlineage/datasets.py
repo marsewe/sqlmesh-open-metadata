@@ -18,7 +18,7 @@ def snapshot_to_table_name(snapshot: "Snapshot") -> str:
 
 def snapshot_to_table_fqn(snapshot: "Snapshot", namespace: str) -> str:
     """Convert snapshot to fully qualified name for Open-Metadata.
-    
+
     Open-Metadata FQN format: <service>.<database>.<schema>.<table>
     For example: demo_pg.postgres.public.actor
     """
@@ -32,12 +32,12 @@ def snapshot_to_column_lineage(
     namespace: str,
 ) -> t.List[t.Any]:
     """Extract column-level lineage for Open-Metadata.
-    
+
     Returns a list of ColumnLineage objects showing which upstream
     columns flow into each output column from a specific parent.
     """
     from metadata.generated.schema.type.entityLineage import ColumnLineage
-    
+
     if not snapshot.is_model:
         return []
 
@@ -74,12 +74,12 @@ def snapshot_to_column_lineage(
                         # Get table name and check if it matches this parent
                         table_parts = [table.catalog, table.db, table.name]
                         table_name = ".".join(p for p in table_parts if p)
-                        
+
                         # Check if this is the parent we're looking for
                         if parent_name in table_name or table_name in parent_name:
                             # Get column name
                             source_col = exp.to_column(lineage_node.name).name
-                            
+
                             # Build FQN for source column
                             from_col_fqn = f"{namespace}.{parent_name}.{source_col}"
                             from_columns.append(from_col_fqn)
@@ -88,7 +88,7 @@ def snapshot_to_column_lineage(
                     # Build FQN for target column
                     output_fqn = snapshot_to_table_fqn(snapshot, namespace)
                     to_col_fqn = f"{output_fqn}.{col_name}"
-                    
+
                     column_lineages.append(
                         ColumnLineage(
                             fromColumns=from_columns,

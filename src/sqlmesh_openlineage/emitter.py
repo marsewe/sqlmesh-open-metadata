@@ -45,22 +45,22 @@ class OpenLineageEmitter:
             )
 
         self.client = OpenMetadata(server_config)
-        
+
         # Cache for table entities - we'll need to fetch them to get IDs
         self._table_cache: t.Dict[str, t.Any] = {}
 
     def _get_or_create_table(self, table_fqn: str) -> t.Optional[t.Any]:
         """Get or create a table entity in Open-Metadata.
-        
+
         For now, we'll try to get the table. In a real implementation,
         you might want to create tables that don't exist.
         """
         if table_fqn in self._table_cache:
             return self._table_cache[table_fqn]
-        
+
         try:
             from metadata.generated.schema.entity.data.table import Table
-            
+
             table_entity = self.client.get_by_name(entity=Table, fqn=table_fqn)
             if table_entity:
                 self._table_cache[table_fqn] = table_entity
@@ -68,7 +68,7 @@ class OpenLineageEmitter:
         except Exception:
             # Table doesn't exist yet - could create it here if needed
             pass
-        
+
         return None
 
     def emit_snapshot_start(
@@ -77,7 +77,7 @@ class OpenLineageEmitter:
         run_id: str,
     ) -> None:
         """Emit lineage when snapshot evaluation starts.
-        
+
         In Open-Metadata, we emit lineage once when we know the dependencies.
         Unlike OpenLineage's START/COMPLETE events, Open-Metadata uses a simpler
         lineage model.
@@ -114,7 +114,7 @@ class OpenLineageEmitter:
 
         # Get output table FQN
         output_fqn = snapshot_to_table_fqn(snapshot, self.namespace)
-        
+
         # Try to get the output table entity
         output_table = self._get_or_create_table(output_fqn)
         if not output_table:
@@ -125,7 +125,7 @@ class OpenLineageEmitter:
         for parent_id in snapshot.parents:
             parent_fqn = f"{self.namespace}.{parent_id.name}"
             parent_table = self._get_or_create_table(parent_fqn)
-            
+
             if not parent_table:
                 # Parent table doesn't exist, skip this lineage edge
                 continue
@@ -162,7 +162,7 @@ class OpenLineageEmitter:
         error: t.Union[str, Exception],
     ) -> None:
         """Handle snapshot failure.
-        
+
         Open-Metadata doesn't have a direct equivalent to OpenLineage FAIL events.
         We could potentially log this or create a data quality incident, but for
         now we'll just skip it.
