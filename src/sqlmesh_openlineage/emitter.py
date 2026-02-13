@@ -126,8 +126,9 @@ class OpenLineageEmitter:
 
         # Get parent snapshots and emit lineage for each
         for parent_id in snapshot.parents:
-            # Build parent FQN consistently with output FQN format
-            # parent_id.name is just the table name, we need to build full FQN
+            # Build parent FQN
+            # Note: parent_id.name should contain the full table identifier
+            # (e.g., 'catalog.schema.table' or 'schema.table' depending on SQLMesh config)
             parent_fqn = f"{self.namespace}.{parent_id.name}"
             parent_table = self._get_or_create_table(parent_fqn)
 

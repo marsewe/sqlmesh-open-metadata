@@ -76,12 +76,13 @@ def snapshot_to_column_lineage(
                         table_name = ".".join(p for p in table_parts if p)
 
                         # Check if this table matches the parent we're looking for
-                        # Use exact matching on the table name component only
+                        # Use exact matching on the table name component or full path
                         if table.name == parent_name or table_name == parent_name:
                             # Get column name
                             source_col = exp.to_column(lineage_node.name).name
 
                             # Build FQN for source column
+                            # Note: parent_name should contain the full table identifier
                             from_col_fqn = f"{namespace}.{parent_name}.{source_col}"
                             from_columns.append(from_col_fqn)
 

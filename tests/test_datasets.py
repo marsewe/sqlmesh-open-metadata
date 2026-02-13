@@ -48,3 +48,4 @@ class TestDatasetConversion:
 
         # Should return empty list since there are no matching parents
         assert isinstance(lineages, list)
+        assert len(lineages) == 0
