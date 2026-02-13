@@ -1,6 +1,7 @@
 """Open-Metadata event emitter for SQLMesh."""
 from __future__ import annotations
 
+import logging
 import typing as t
 from datetime import datetime, timezone
 
@@ -8,6 +9,8 @@ if t.TYPE_CHECKING:
     from sqlmesh.core.snapshot import Snapshot
     from sqlmesh.core.snapshot.definition import Interval
     from sqlmesh.core.snapshot.execution_tracker import QueryExecutionStats
+
+logger = logging.getLogger(__name__)
 
 
 class OpenLineageEmitter:
@@ -155,8 +158,6 @@ class OpenLineageEmitter:
                 self.client.add_lineage(data=add_lineage_request)
             except Exception as e:
                 # Use logging instead of print
-                import logging
-                logger = logging.getLogger(__name__)
                 logger.warning(
                     f"Failed to add lineage from {parent_fqn} to {output_fqn}: {e}"
                 )

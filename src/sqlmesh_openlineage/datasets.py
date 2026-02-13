@@ -71,13 +71,13 @@ def snapshot_to_column_lineage(
                     # Find the source table
                     table = lineage_node.expression.find(exp.Table)
                     if table:
-                        # Get table name and check if it matches this parent
+                        # Get table name components
                         table_parts = [table.catalog, table.db, table.name]
                         table_name = ".".join(p for p in table_parts if p)
 
                         # Check if this table matches the parent we're looking for
-                        # Use exact matching on the name component
-                        if table.name == parent_name or table_name == parent_name or table_name.endswith(f".{parent_name}"):
+                        # Use exact matching on the table name component only
+                        if table.name == parent_name or table_name == parent_name:
                             # Get column name
                             source_col = exp.to_column(lineage_node.name).name
 
