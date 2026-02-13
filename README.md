@@ -10,6 +10,16 @@ Open-Metadata integration for SQLMesh. Automatically emits lineage to Open-Metad
 - **Automatic emission**: Lineage is automatically sent to Open-Metadata during SQLMesh runs
 - **Per-model lineage**: Lineage edges created for each model evaluation
 
+## Prerequisites
+
+Before using this package, you need to:
+
+1. **Set up Open-Metadata**: Have an Open-Metadata instance running (e.g., `http://localhost:8585`)
+2. **Create a Database Service**: Create a database service in Open-Metadata with a name matching your `namespace` parameter
+3. **Catalog Tables**: Use Open-Metadata's ingestion framework to catalog your tables first, or the lineage emission will be skipped for tables that don't exist
+
+The package will attempt to look up tables by their fully qualified name (FQN) in the format: `<namespace>.<catalog>.<schema>.<table>`. If a table doesn't exist in Open-Metadata, lineage for that table will be silently skipped.
+
 ## Installation
 
 ```bash
