@@ -1,3 +1,5 @@
+# DRAFT, created by github agent
+
 # sqlmesh-openlineage
 
 Open-Metadata integration for SQLMesh. Automatically emits lineage to Open-Metadata for table and column-level lineage tracking.
