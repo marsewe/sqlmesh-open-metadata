@@ -1,4 +1,4 @@
-"""OpenLineage Console wrapper for SQLMesh."""
+"""Open-Metadata Console wrapper for SQLMesh."""
 from __future__ import annotations
 
 import uuid
@@ -14,14 +14,14 @@ if t.TYPE_CHECKING:
 
 
 class OpenLineageConsole:
-    """Console wrapper that emits OpenLineage events for snapshot evaluations.
+    """Console wrapper that emits Open-Metadata lineage for snapshot evaluations.
 
     This class wraps an existing SQLMesh Console and intercepts lifecycle
-    events to emit OpenLineage events.
+    events to emit lineage to Open-Metadata.
 
     The wrapper uses delegation (not inheritance) to forward all Console
     methods to the wrapped instance while intercepting specific methods
-    for OpenLineage event emission.
+    for Open-Metadata lineage emission.
     """
 
     def __init__(

@@ -29,46 +29,23 @@ class TestDatasetConversion:
         name = snapshot_to_table_name(snapshot)
         assert name == "schema.model"
 
-    def test_snapshot_to_schema_facet(self, mock_snapshot):
-        """Test schema facet extraction."""
-        from sqlmesh_openlineage.datasets import snapshot_to_schema_facet
+    def test_snapshot_to_table_fqn(self, mock_snapshot):
+        """Test fully qualified name for Open-Metadata."""
+        from sqlmesh_openlineage.datasets import snapshot_to_table_fqn
 
-        facet = snapshot_to_schema_facet(mock_snapshot)
+        fqn = snapshot_to_table_fqn(mock_snapshot, namespace="test_service")
+        assert fqn == "test_service.catalog.schema.test_model"
 
-        assert facet is not None
-        assert len(facet.fields) == 2
-
-    def test_snapshot_to_output_dataset(self, mock_snapshot):
-        """Test output dataset creation."""
-        from sqlmesh_openlineage.datasets import snapshot_to_output_dataset
-
-        dataset = snapshot_to_output_dataset(mock_snapshot, namespace="test")
-
-        assert dataset is not None
-        assert dataset.namespace == "test"
-        assert dataset.name == "catalog.schema.test_model"
-
-    def test_snapshot_to_input_datasets(self, mock_snapshot):
-        """Test input datasets from parents."""
-        from sqlmesh_openlineage.datasets import snapshot_to_input_datasets
-
-        # Add parent
-        parent_id = MagicMock()
-        parent_id.name = "parent_model"
-        mock_snapshot.parents = [parent_id]
-
-        datasets = snapshot_to_input_datasets(mock_snapshot, namespace="test")
-
-        assert len(datasets) == 1
-        assert datasets[0].name == "parent_model"
-        assert datasets[0].namespace == "test"
-
-    def test_snapshot_to_input_datasets_empty(self, mock_snapshot):
-        """Test input datasets with no parents."""
-        from sqlmesh_openlineage.datasets import snapshot_to_input_datasets
+    def test_snapshot_to_column_lineage_empty(self, mock_snapshot):
+        """Test column lineage with no parents."""
+        from sqlmesh_openlineage.datasets import snapshot_to_column_lineage
 
         mock_snapshot.parents = []
 
-        datasets = snapshot_to_input_datasets(mock_snapshot, namespace="test")
+        lineages = snapshot_to_column_lineage(
+            mock_snapshot, parent_name="parent_model", namespace="test"
+        )
 
-        assert len(datasets) == 0
+        # Should return empty list since there are no matching parents
+        assert isinstance(lineages, list)
+        assert len(lineages) == 0
