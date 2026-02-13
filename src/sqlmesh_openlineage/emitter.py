@@ -123,6 +123,8 @@ class OpenLineageEmitter:
 
         # Get parent snapshots and emit lineage for each
         for parent_id in snapshot.parents:
+            # Build parent FQN consistently with output FQN format
+            # parent_id.name is just the table name, we need to build full FQN
             parent_fqn = f"{self.namespace}.{parent_id.name}"
             parent_table = self._get_or_create_table(parent_fqn)
 
@@ -152,8 +154,12 @@ class OpenLineageEmitter:
             try:
                 self.client.add_lineage(data=add_lineage_request)
             except Exception as e:
-                # Log error but continue - don't fail the whole run
-                print(f"Warning: Failed to add lineage from {parent_fqn} to {output_fqn}: {e}")
+                # Use logging instead of print
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(
+                    f"Failed to add lineage from {parent_fqn} to {output_fqn}: {e}"
+                )
 
     def emit_snapshot_fail(
         self,

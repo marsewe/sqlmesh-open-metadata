@@ -75,8 +75,9 @@ def snapshot_to_column_lineage(
                         table_parts = [table.catalog, table.db, table.name]
                         table_name = ".".join(p for p in table_parts if p)
 
-                        # Check if this is the parent we're looking for
-                        if parent_name in table_name or table_name in parent_name:
+                        # Check if this table matches the parent we're looking for
+                        # Use exact matching on the name component
+                        if table.name == parent_name or table_name == parent_name or table_name.endswith(f".{parent_name}"):
                             # Get column name
                             source_col = exp.to_column(lineage_node.name).name
 
