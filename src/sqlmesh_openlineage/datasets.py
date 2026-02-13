@@ -1,4 +1,4 @@
-"""Convert SQLMesh Snapshots to OpenLineage Datasets."""
+"""Convert SQLMesh Snapshots to Open-Metadata format."""
 from __future__ import annotations
 
 import typing as t
@@ -7,73 +7,61 @@ from collections import defaultdict
 if t.TYPE_CHECKING:
     from sqlmesh.core.snapshot import Snapshot
     from sqlmesh.core.model import Model
-    from openlineage.client.event_v2 import InputDataset, OutputDataset
 
 
 def snapshot_to_table_name(snapshot: "Snapshot") -> str:
-    """Convert snapshot to fully qualified table name."""
+    """Convert snapshot to table name (without namespace)."""
     qvn = snapshot.qualified_view_name
     parts = [qvn.catalog, qvn.schema_name, qvn.table]
     return ".".join(p for p in parts if p)
 
 
-def snapshot_to_schema_facet(snapshot: "Snapshot") -> t.Optional[t.Any]:
-    """Extract schema facet from snapshot model."""
-    from openlineage.client.facet_v2 import schema_dataset
-
-    if not snapshot.is_model:
-        return None
-
-    model = snapshot.model
-    if not model:
-        return None
-
-    columns = getattr(model, "columns_to_types", None)
-    if not columns:
-        return None
-
-    fields = [
-        schema_dataset.SchemaDatasetFacetFields(name=col, type=str(dtype))
-        for col, dtype in columns.items()
-    ]
-    return schema_dataset.SchemaDatasetFacet(fields=fields)
-
-
-def snapshot_to_column_lineage_facet(
-    snapshot: "Snapshot",
-    namespace: str,
-) -> t.Optional[t.Any]:
-    """Extract column-level lineage from snapshot model.
-
-    Returns OpenLineage ColumnLineageDatasetFacet showing which upstream
-    columns flow into each output column.
+def snapshot_to_table_fqn(snapshot: "Snapshot", namespace: str) -> str:
+    """Convert snapshot to fully qualified name for Open-Metadata.
+    
+    Open-Metadata FQN format: <service>.<database>.<schema>.<table>
+    For example: demo_pg.postgres.public.actor
     """
-    from openlineage.client.facet_v2 import column_lineage_dataset
+    table_name = snapshot_to_table_name(snapshot)
+    return f"{namespace}.{table_name}"
 
+
+def snapshot_to_column_lineage(
+    snapshot: "Snapshot",
+    parent_name: str,
+    namespace: str,
+) -> t.List[t.Any]:
+    """Extract column-level lineage for Open-Metadata.
+    
+    Returns a list of ColumnLineage objects showing which upstream
+    columns flow into each output column from a specific parent.
+    """
+    from metadata.generated.schema.type.entityLineage import ColumnLineage
+    
     if not snapshot.is_model:
-        return None
+        return []
 
     model = snapshot.model
     if not model:
-        return None
+        return []
 
     columns = getattr(model, "columns_to_types", None)
     if not columns:
-        return None
+        return []
+
+    column_lineages: t.List[ColumnLineage] = []
 
     try:
         from sqlmesh.core.lineage import lineage
         from sqlglot import exp
-
-        fields: t.Dict[str, column_lineage_dataset.Fields] = {}
 
         for col_name in columns.keys():
             try:
                 # Get lineage for this column
                 node = lineage(col_name, model, trim_selects=False)
 
-                # Walk the lineage tree to find source columns
-                input_fields: t.List[column_lineage_dataset.InputField] = []
+                # Walk the lineage tree to find source columns from this parent
+                from_columns: t.List[str] = []
 
                 for lineage_node in node.walk():
                     # Skip nodes that have downstream (not leaf nodes)
@@ -83,93 +71,37 @@ def snapshot_to_column_lineage_facet(
                     # Find the source table
                     table = lineage_node.expression.find(exp.Table)
                     if table:
-                        # Get table name
+                        # Get table name and check if it matches this parent
                         table_parts = [table.catalog, table.db, table.name]
                         table_name = ".".join(p for p in table_parts if p)
+                        
+                        # Check if this is the parent we're looking for
+                        if parent_name in table_name or table_name in parent_name:
+                            # Get column name
+                            source_col = exp.to_column(lineage_node.name).name
+                            
+                            # Build FQN for source column
+                            from_col_fqn = f"{namespace}.{parent_name}.{source_col}"
+                            from_columns.append(from_col_fqn)
 
-                        # Get column name
-                        source_col = exp.to_column(lineage_node.name).name
-
-                        input_fields.append(
-                            column_lineage_dataset.InputField(
-                                namespace=namespace,
-                                name=table_name,
-                                field=source_col,
-                            )
+                if from_columns:
+                    # Build FQN for target column
+                    output_fqn = snapshot_to_table_fqn(snapshot, namespace)
+                    to_col_fqn = f"{output_fqn}.{col_name}"
+                    
+                    column_lineages.append(
+                        ColumnLineage(
+                            fromColumns=from_columns,
+                            toColumn=to_col_fqn,
                         )
-
-                if input_fields:
-                    fields[col_name] = column_lineage_dataset.Fields(
-                        inputFields=input_fields,
-                        transformationType="",
-                        transformationDescription="",
                     )
 
             except Exception:
                 # Skip columns we can't trace
                 continue
 
-        if fields:
-            return column_lineage_dataset.ColumnLineageDatasetFacet(fields=fields)
-
     except Exception:
-        # If lineage extraction fails, return None
+        # If lineage extraction fails, return empty list
         pass
 
-    return None
-
-
-def snapshot_to_output_dataset(
-    snapshot: "Snapshot",
-    namespace: str,
-    facets: t.Optional[t.Dict[str, t.Any]] = None,
-) -> t.Optional["OutputDataset"]:
-    """Convert snapshot to OpenLineage OutputDataset."""
-    from openlineage.client.event_v2 import OutputDataset
-
-    if not snapshot.is_model:
-        return None
-
-    all_facets: t.Dict[str, t.Any] = {}
-
-    # Add schema facet
-    schema_facet = snapshot_to_schema_facet(snapshot)
-    if schema_facet:
-        all_facets["schema"] = schema_facet
-
-    # Add column lineage facet
-    column_lineage_facet = snapshot_to_column_lineage_facet(snapshot, namespace)
-    if column_lineage_facet:
-        all_facets["columnLineage"] = column_lineage_facet
-
-    # Merge additional facets
-    if facets:
-        all_facets.update(facets)
-
-    return OutputDataset(
-        namespace=namespace,
-        name=snapshot_to_table_name(snapshot),
-        facets=all_facets if all_facets else None,
-    )
-
-
-def snapshot_to_input_datasets(
-    snapshot: "Snapshot",
-    namespace: str,
-) -> t.List["InputDataset"]:
-    """Get upstream dependencies as input datasets."""
-    from openlineage.client.event_v2 import InputDataset
-
-    inputs: t.List["InputDataset"] = []
-
-    # Get parent snapshot IDs
-    for parent_id in snapshot.parents:
-        # Parent ID contains the name we need
-        inputs.append(
-            InputDataset(
-                namespace=namespace,
-                name=parent_id.name,
-            )
-        )
-
-    return inputs
+    return column_lineages

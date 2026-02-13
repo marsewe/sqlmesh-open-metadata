@@ -1,14 +1,14 @@
 [project]
 name = "sqlmesh-openlineage"
 version = "0.1.0"
-description = "OpenLineage integration for SQLMesh - emit lineage to Marquez"
+description = "Open-Metadata integration for SQLMesh - emit lineage to Open-Metadata"
 readme = "README.md"
 requires-python = ">= 3.9"
 license = { text = "MIT" }
 authors = [
     { name = "Sidequery", email = "hello@sidequery.com" }
 ]
-keywords = ["sqlmesh", "openlineage", "marquez", "data-lineage", "data-engineering"]
+keywords = ["sqlmesh", "openmetadata", "open-metadata", "data-lineage", "data-engineering"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -23,13 +23,13 @@ classifiers = [
 ]
 dependencies = [
     "sqlmesh>=0.100.0",
-    "openlineage-python>=1.0.0",
+    "openmetadata-ingestion>=1.0.0",
 ]
 
 [project.urls]
-Homepage = "https://github.com/sidequery/sqlmesh-openlineage"
-Repository = "https://github.com/sidequery/sqlmesh-openlineage"
-Issues = "https://github.com/sidequery/sqlmesh-openlineage/issues"
+Homepage = "https://github.com/marsewe/sqlmesh-open-metadata"
+Repository = "https://github.com/marsewe/sqlmesh-open-metadata"
+Issues = "https://github.com/marsewe/sqlmesh-open-metadata/issues"
 
 [project.optional-dependencies]
 dev = [
