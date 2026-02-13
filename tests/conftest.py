@@ -37,10 +37,10 @@ def mock_console():
 
 @pytest.fixture
 def mock_openlineage_client(mocker):
-    """Mock the OpenLineage client."""
+    """Mock the Open-Metadata client."""
     mock_client = MagicMock()
     mocker.patch(
-        "openlineage.client.OpenLineageClient",
+        "metadata.ingestion.ometa.ometa_api.OpenMetadata",
         return_value=mock_client,
     )
     return mock_client
