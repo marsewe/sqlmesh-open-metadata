@@ -1,14 +1,14 @@
 # sqlmesh-openlineage
 
-OpenLineage integration for SQLMesh. Automatically emits lineage events to Marquez or any OpenLineage-compatible backend.
+Open-Metadata integration for SQLMesh. Automatically emits lineage to Open-Metadata for table and column-level lineage tracking.
 
 ## Features
 
 - **Table-level lineage**: Track which models depend on which upstream models
 - **Column-level lineage**: Track which columns flow from source to destination
 - **Schema capture**: Column names and types for each model
-- **Execution stats**: Duration, rows processed, bytes processed
-- **Per-model events**: START/COMPLETE/FAIL events for each model evaluation
+- **Automatic emission**: Lineage is automatically sent to Open-Metadata during SQLMesh runs
+- **Per-model lineage**: Lineage edges created for each model evaluation
 
 ## Installation
 
@@ -32,9 +32,9 @@ Add this to your `config.py`:
 import sqlmesh_openlineage
 
 sqlmesh_openlineage.install(
-    url="http://localhost:5000",
-    namespace="my_project",
-    # api_key="...",  # optional
+    url="http://localhost:8585/api",
+    namespace="my_database_service",
+    api_key="your_jwt_token",
 )
 
 from sqlmesh.core.config import Config
@@ -44,16 +44,16 @@ config = Config(
 )
 ```
 
-Then run `sqlmesh run` as normal. OpenLineage events will be emitted for each model evaluation.
+Then run `sqlmesh run` as normal. Lineage will be emitted to Open-Metadata for each model evaluation.
 
 ## Environment Variables
 
 You can also configure via environment variables:
 
 ```bash
-export OPENLINEAGE_URL=http://localhost:5000
-export OPENLINEAGE_NAMESPACE=my_project
-export OPENLINEAGE_API_KEY=...  # optional
+export OPENMETADATA_URL=http://localhost:8585/api
+export OPENMETADATA_NAMESPACE=my_database_service
+export OPENMETADATA_API_KEY=your_jwt_token
 ```
 
 Then in `config.py`:
@@ -65,20 +65,18 @@ sqlmesh_openlineage.install()  # reads from env vars
 
 ## How It Works
 
-This package uses SQLMesh's `set_console()` API to inject a custom Console wrapper. The wrapper intercepts per-snapshot lifecycle events and emits corresponding OpenLineage events:
+This package uses SQLMesh's `set_console()` API to inject a custom Console wrapper. The wrapper intercepts per-snapshot lifecycle events and emits corresponding lineage to Open-Metadata:
 
-- `START` event when a model evaluation begins
-- `COMPLETE` event when evaluation succeeds (includes execution stats)
-- `FAIL` event when evaluation fails or audits fail
+- When a model evaluation completes successfully, lineage edges are created from upstream tables to the output table
+- Column-level lineage is extracted using SQLMesh's built-in lineage analysis
+- Tables must exist in Open-Metadata before lineage can be created
 
-## Events Emitted
+## Lineage Emission
 
-| SQLMesh Event | OpenLineage Event | Data Included |
-|---------------|-------------------|---------------|
-| Model evaluation start | RunEvent(START) | Input datasets, output dataset with schema, column lineage |
-| Model evaluation success | RunEvent(COMPLETE) | Execution stats (rows, bytes, duration) |
-| Model evaluation failure | RunEvent(FAIL) | Error message |
-| Audit failure | RunEvent(FAIL) | Audit failure details |
+| SQLMesh Event | Open-Metadata Action | Data Included |
+|---------------|---------------------|---------------|
+| Model evaluation success | Add lineage edge | Table-level lineage, column-level lineage |
+| Model evaluation failure | (None) | Failures are not tracked in lineage |
 
 ## Column-Level Lineage
 
@@ -100,18 +98,25 @@ GROUP BY c.customer_id, c.name
 
 The lineage will show that `customer_summary.customer_name` traces back to `customers.name`.
 
-## Testing with Marquez
+## Testing with Open-Metadata
 
 ```bash
-# Start Marquez (requires Docker)
-docker compose up -d
+# Start Open-Metadata (requires Docker)
+docker run -d -p 8585:8585 --name openmetadata openmetadata/server:latest
 
 # Configure and run SQLMesh
-export OPENLINEAGE_URL=http://localhost:5001
+export OPENMETADATA_URL=http://localhost:8585/api
+export OPENMETADATA_NAMESPACE=my_database_service
+export OPENMETADATA_API_KEY=your_jwt_token
 sqlmesh run
 
-# View lineage at http://localhost:3000
+# View lineage at http://localhost:8585
 ```
+
+**Note:** You'll need to:
+1. Create a database service in Open-Metadata matching your `namespace`
+2. Ensure tables exist in Open-Metadata before lineage can be created
+3. Use Open-Metadata ingestion to initially catalog your tables, or create them manually
 
 ## Development
 
@@ -121,11 +126,6 @@ uv sync --dev
 
 # Run tests (unit + integration)
 uv run pytest tests/ -v
-
-# Run Marquez integration test (requires Docker)
-docker compose up -d
-uv run pytest tests/test_marquez_integration.py -v -s
-docker compose down
 ```
 
 ## License
