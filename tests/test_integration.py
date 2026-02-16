@@ -168,6 +168,47 @@ FROM test_db.source_data
         assert processed_complete.run.facets is not None
         assert "sqlmesh_execution" in processed_complete.run.facets
 
+        # Verify producer URI on all events
+        for event in captured_events:
+            assert event.producer == "https://github.com/sidequery/sqlmesh-openlineage"
+
+        # Verify JobTypeJobFacet on START events
+        for start_event in start_events:
+            assert start_event.job.facets is not None
+            assert "jobType" in start_event.job.facets
+            jt = start_event.job.facets["jobType"]
+            assert jt.processingType == "BATCH"
+            assert jt.integration == "SQLMESH"
+            assert jt.jobType == "MODEL"
+
+        # Verify SQLJobFacet on START events
+        for start_event in start_events:
+            assert "sql" in start_event.job.facets
+            assert start_event.job.facets["sql"].query  # non-empty SQL
+
+        # Verify ProcessingEngineRunFacet on START events
+        for start_event in start_events:
+            assert start_event.run.facets is not None
+            assert "processing_engine" in start_event.run.facets
+            pe = start_event.run.facets["processing_engine"]
+            assert pe.name == "SQLMesh"
+            assert pe.version  # non-empty version
+            assert pe.openlineageAdapterVersion == "0.1.0"
+
+        # Verify COMPLETE events also have inputs (improvement #6)
+        assert len(processed_complete.inputs) == 1, "COMPLETE should also have inputs"
+        assert "source_data" in processed_complete.inputs[0].name
+
+        # Verify COMPLETE events have job facets too
+        for complete_event in complete_events:
+            assert complete_event.job.facets is not None
+            assert "jobType" in complete_event.job.facets
+            assert "sql" in complete_event.job.facets
+
+        # Verify ProcessingEngineRunFacet on COMPLETE events
+        for complete_event in complete_events:
+            assert "processing_engine" in complete_event.run.facets
+
     def test_audit_failure_emits_fail_event(self, temp_project, captured_events):
         """Test that audit failures emit FAIL events."""
         # Create a model with a failing audit

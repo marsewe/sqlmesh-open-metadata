@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import os
+import threading
 import typing as t
 
 _installed = False
+_install_lock = threading.Lock()
 
 
 def install(
@@ -37,37 +39,38 @@ def install(
     """
     global _installed
 
-    if _installed:
-        return
+    with _install_lock:
+        if _installed:
+            return
 
-    from sqlmesh.core.console import set_console, create_console
-    from sqlmesh_openlineage.console import OpenLineageConsole
+        from sqlmesh.core.console import set_console, create_console
+        from sqlmesh_openlineage.console import OpenLineageConsole
 
-    # Resolve config from args or env vars
-    resolved_url = url or os.environ.get("OPENLINEAGE_URL")
-    resolved_namespace = namespace or os.environ.get("OPENLINEAGE_NAMESPACE", "sqlmesh")
-    resolved_api_key = api_key or os.environ.get("OPENLINEAGE_API_KEY")
+        # Resolve config from args or env vars
+        resolved_url = url if url is not None else os.environ.get("OPENLINEAGE_URL")
+        resolved_namespace = namespace if namespace is not None else os.environ.get("OPENLINEAGE_NAMESPACE", "sqlmesh")
+        resolved_api_key = api_key if api_key is not None else os.environ.get("OPENLINEAGE_API_KEY")
 
-    if not resolved_url:
-        raise ValueError(
-            "OpenLineage URL required. Pass url= or set OPENLINEAGE_URL env var."
+        if not resolved_url:
+            raise ValueError(
+                "OpenLineage URL required. Pass url= or set OPENLINEAGE_URL env var."
+            )
+
+        # Create the default console for the current environment
+        default_console = create_console()
+
+        # Wrap it with OpenLineage emission
+        ol_console = OpenLineageConsole(
+            wrapped=default_console,
+            url=resolved_url,
+            namespace=resolved_namespace,
+            api_key=resolved_api_key,
         )
 
-    # Create the default console for the current environment
-    default_console = create_console()
+        # Set as global console - SQLMesh's CLI will use this
+        set_console(ol_console)
 
-    # Wrap it with OpenLineage emission
-    ol_console = OpenLineageConsole(
-        wrapped=default_console,
-        url=resolved_url,
-        namespace=resolved_namespace,
-        api_key=resolved_api_key,
-    )
-
-    # Set as global console - SQLMesh's CLI will use this
-    set_console(ol_console)
-
-    _installed = True
+        _installed = True
 
 
 def is_installed() -> bool:

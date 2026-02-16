@@ -17,8 +17,8 @@ def build_run_facets(
     # Add custom SQLMesh facet with execution info
     if duration_ms is not None or execution_stats is not None:
         sqlmesh_facet = {
-            "_producer": "sqlmesh-openlineage",
-            "_schemaURL": "https://openlineage.io/spec/facets/1-0-0/SQLMeshExecutionFacet.json",
+            "_producer": "https://github.com/sidequery/sqlmesh-openlineage",
+            "_schemaURL": "https://github.com/sidequery/sqlmesh-openlineage#SQLMeshExecutionFacet",
         }
 
         if duration_ms is not None:

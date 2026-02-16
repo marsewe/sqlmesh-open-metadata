@@ -2,11 +2,9 @@
 from __future__ import annotations
 
 import typing as t
-from collections import defaultdict
 
 if t.TYPE_CHECKING:
     from sqlmesh.core.snapshot import Snapshot
-    from sqlmesh.core.model import Model
     from openlineage.client.event_v2 import InputDataset, OutputDataset
 
 
@@ -90,19 +88,28 @@ def snapshot_to_column_lineage_facet(
                         # Get column name
                         source_col = exp.to_column(lineage_node.name).name
 
+                        # Determine transformation type based on whether
+                        # output column name matches source column name
+                        is_identity = col_name == source_col
+                        transformations = [
+                            column_lineage_dataset.Transformation(
+                                type="DIRECT",
+                                subtype="IDENTITY" if is_identity else "TRANSFORMATION",
+                            )
+                        ]
+
                         input_fields.append(
                             column_lineage_dataset.InputField(
                                 namespace=namespace,
                                 name=table_name,
                                 field=source_col,
+                                transformations=transformations,
                             )
                         )
 
                 if input_fields:
                     fields[col_name] = column_lineage_dataset.Fields(
                         inputFields=input_fields,
-                        transformationType="",
-                        transformationDescription="",
                     )
 
             except Exception:
@@ -156,19 +163,28 @@ def snapshot_to_output_dataset(
 def snapshot_to_input_datasets(
     snapshot: "Snapshot",
     namespace: str,
+    snapshots: t.Optional[t.Dict[str, "Snapshot"]] = None,
 ) -> t.List["InputDataset"]:
-    """Get upstream dependencies as input datasets."""
+    """Get upstream dependencies as input datasets.
+
+    When a snapshots dict is provided, parent snapshots are looked up to
+    produce fully qualified table names consistent with output datasets.
+    """
     from openlineage.client.event_v2 import InputDataset
 
     inputs: t.List["InputDataset"] = []
 
     # Get parent snapshot IDs
     for parent_id in snapshot.parents:
-        # Parent ID contains the name we need
+        # Try to resolve fully qualified name via the snapshots dict
+        parent_name = parent_id.name
+        if snapshots and parent_name in snapshots:
+            parent_name = snapshot_to_table_name(snapshots[parent_name])
+
         inputs.append(
             InputDataset(
                 namespace=namespace,
-                name=parent_id.name,
+                name=parent_name,
             )
         )
 
