@@ -1,8 +1,11 @@
 """OpenLineage Console wrapper for SQLMesh."""
 from __future__ import annotations
 
+import logging
 import uuid
 import typing as t
+
+logger = logging.getLogger(__name__)
 
 if t.TYPE_CHECKING:
     from sqlmesh.core.console import Console
@@ -72,10 +75,14 @@ class OpenLineageConsole:
         # Store snapshot for later reference
         self._current_snapshots[snapshot.name] = snapshot
 
-        self._emitter.emit_snapshot_start(
-            snapshot=snapshot,
-            run_id=run_id,
-        )
+        try:
+            self._emitter.emit_snapshot_start(
+                snapshot=snapshot,
+                run_id=run_id,
+                snapshots=self._current_snapshots,
+            )
+        except Exception:
+            logger.warning("Failed to emit START event for %s", snapshot.name, exc_info=True)
 
         # Delegate to wrapped console
         self._wrapped.start_snapshot_evaluation_progress(snapshot, audit_only)
@@ -96,20 +103,24 @@ class OpenLineageConsole:
         run_id = self._active_runs.pop(snapshot.name, None)
 
         if run_id:
-            if num_audits_failed > 0:
-                self._emitter.emit_snapshot_fail(
-                    snapshot=snapshot,
-                    run_id=run_id,
-                    error=f"Audit failed: {num_audits_failed} audit(s) failed",
-                )
-            else:
-                self._emitter.emit_snapshot_complete(
-                    snapshot=snapshot,
-                    run_id=run_id,
-                    interval=interval,
-                    duration_ms=duration_ms,
-                    execution_stats=execution_stats,
-                )
+            try:
+                if num_audits_failed > 0:
+                    self._emitter.emit_snapshot_fail(
+                        snapshot=snapshot,
+                        run_id=run_id,
+                        error=f"Audit failed: {num_audits_failed} audit(s) failed",
+                    )
+                else:
+                    self._emitter.emit_snapshot_complete(
+                        snapshot=snapshot,
+                        run_id=run_id,
+                        interval=interval,
+                        duration_ms=duration_ms,
+                        execution_stats=execution_stats,
+                        snapshots=self._current_snapshots,
+                    )
+            except Exception:
+                logger.warning("Failed to emit event for %s", snapshot.name, exc_info=True)
 
         # Delegate to wrapped console
         self._wrapped.update_snapshot_evaluation_progress(
@@ -130,11 +141,14 @@ class OpenLineageConsole:
         for snapshot_name, run_id in list(self._active_runs.items()):
             snapshot = self._current_snapshots.get(snapshot_name)
             if snapshot and run_id:
-                self._emitter.emit_snapshot_fail(
-                    snapshot=snapshot,
-                    run_id=run_id,
-                    error="Evaluation interrupted" if not success else "Unknown error",
-                )
+                try:
+                    self._emitter.emit_snapshot_fail(
+                        snapshot=snapshot,
+                        run_id=run_id,
+                        error="Evaluation interrupted" if not success else "Unknown error",
+                    )
+                except Exception:
+                    logger.warning("Failed to emit FAIL event for %s", snapshot_name, exc_info=True)
 
         # Clear tracking state
         self._active_runs.clear()
