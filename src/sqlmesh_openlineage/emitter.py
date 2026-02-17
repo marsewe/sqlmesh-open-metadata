@@ -70,7 +70,7 @@ class OpenLineageEmitter:
                 return table_entity
         except Exception:
             # Table doesn't exist yet - could create it here if needed
-            pass
+            logging.warning(f"Table {table_fqn} not found in Open-Metadata.", exc_info=True)
 
         return None
 
@@ -129,11 +129,15 @@ class OpenLineageEmitter:
             # Build parent FQN
             # Note: parent_id.name should contain the full table identifier
             # (e.g., 'catalog.schema.table' or 'schema.table' depending on SQLMesh config)
-            parent_fqn = f"{self.namespace}.{parent_id.name}"
+            parent_name_cleaned = parent_id.name.replace('"', '')
+            parent_fqn = f"{self.namespace}.{parent_name_cleaned}"
             parent_table = self._get_or_create_table(parent_fqn)
 
             if not parent_table:
                 # Parent table doesn't exist, skip this lineage edge
+                logger.warning(
+                    f"Parent table {parent_fqn} not found in Open-Metadata. Skipping lineage from {parent_fqn} to {output_fqn}."
+                )
                 continue
 
             # Build column lineage
